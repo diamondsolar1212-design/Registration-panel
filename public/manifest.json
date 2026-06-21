@@ -1,0 +1,22 @@
+{
+  "name": "Diamond Solar",
+  "short_name": "Diamond Solar",
+  "description": "Diamond Solar - Powering India's Solar Future. Apply for solar installation, track your application, and start saving with renewable energy.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f59e0b",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["business", "utilities"],
+  "lang": "en",
+  "dir": "ltr"
+}

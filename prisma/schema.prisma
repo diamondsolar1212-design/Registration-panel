@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  password  String
+  role      String   @default("user") // "user" or "admin"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  applications  Application[]
+  documents     Document[]
+  payments      Payment[]
+  notifications Notification[]
+}
+
+model Application {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Personal Info
+  applicantName    String
+  applicantEmail   String
+  applicantPhone   String
+  applicantAddress String?
+
+  // Property Details
+  propertyType     String  // "residential", "commercial", "industrial", "agricultural"
+  propertyAddress  String
+  propertyState    String
+  propertyCity     String
+  propertyPincode  String
+  landRoofSize     Float   // in sq ft (converted from user's unit)
+  landRoofSizeUnit String  @default("sq_ft") // "sq_ft", "sq_yard", "sq_meter", "acre"
+  rooftopArea      Float?  // usable rooftop area in sq ft
+  rooftopAreaUnit  String  @default("sq_ft")
+  latitude         Float?
+  longitude        Float?
+
+  // Solar Requirements
+  connectionType     String  // "on-grid", "off-grid", "hybrid"
+  preferredCapacity  Float?  // in kW
+  electricityBill    Float?  // monthly average
+  existingConnection Boolean @default(false)
+
+  // Auto-calculated fields
+  recommendedCapacity Float?
+  estimatedCost       Float?
+  annualSavings       Float?
+  propertyScore       Float?
+  propertyClass       String? // "A", "B", "C", "D"
+  co2Reduction        Float?
+
+  // Status
+  status     String    @default("draft") // "draft", "pending", "under_review", "approved", "rejected", "installed"
+  adminNotes String?
+  reviewedBy String?
+  reviewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  documents    Document[]
+  payments     Payment[]
+  approvals    Approval[]
+  calculations ApplicationCalculation[]
+}
+
+model Document {
+  id            String  @id @default(cuid())
+  userId        String
+  user          User    @relation(fields: [userId], references: [id])
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id])
+
+  docType   String  // "identity", "address_proof", "property_ownership", "electricity_bill", "payment_screenshot", "other"
+  fileName  String
+  filePath  String
+  fileSize  Int?
+  mimeType  String?
+  verified  Boolean @default(false)
+  verifiedBy String?
+  verifiedAt DateTime?
+  remarks   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id            String  @id @default(cuid())
+  userId        String
+  user          User    @relation(fields: [userId], references: [id])
+  applicationId String?
+  application   Application? @relation(fields: [applicationId], references: [id])
+
+  amount         Float
+  paymentType    String  // "application_fee", "installation_fee", "maintenance_fee"
+  paymentMethod  String  // "upi", "bank_transfer", "online"
+  transactionId  String?
+  screenshotPath String?
+  status         String  @default("pending") // "pending", "verified", "rejected"
+  verifiedBy     String?
+  verifiedAt     DateTime?
+  remarks        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Approval {
+  id            String   @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  approvalNumber String   @unique
+  approvedBy     String
+  approvedAt     DateTime @default(now())
+  validUntil     DateTime?
+  terms          String?
+  conditions     String?
+
+  // PDF related
+  pdfGenerated Boolean @default(false)
+  pdfPath      String?
+
+  versions ApprovalLetterVersion[]
+  history  ApprovalHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ApprovalLetterVersion {
+  id          String   @id @default(cuid())
+  approvalId  String
+  approval    Approval @relation(fields: [approvalId], references: [id])
+
+  version     Int
+  content     String // JSON string of letter content
+  generatedAt DateTime @default(now())
+  generatedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ApprovalHistory {
+  id          String   @id @default(cuid())
+  approvalId  String
+  approval    Approval @relation(fields: [approvalId], references: [id])
+
+  action      String // "created", "updated", "revoked", "reissued"
+  performedBy String
+  notes       String?
+
+  createdAt DateTime @default(now())
+}
+
+model ApplicationCalculation {
+  id            String   @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id])
+
+  // Calculation parameters
+  solarIrradiance  Float? // kWh/m2/day for the location
+  systemEfficiency Float? // typically 0.75-0.85
+  degradationRate  Float? // annual % degradation
+  // Results
+  peakCapacity     Float? // kW
+  annualGeneration Float? // kWh
+  paybackPeriod    Float? // years
+  roiPercent       Float? // return on investment %
+  carbonOffset     Float? // tonnes CO2/year
+
+  calculatedAt DateTime @default(now())
+}
+
+model CompanyUpdate {
+  id       String  @id @default(cuid())
+  title    String
+  content  String
+  category String  // "news", "promotion", "maintenance", "policy"
+  pinned   Boolean @default(false)
+  active   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  title   String
+  message String
+  type    String  // "info", "warning", "success", "error"
+  read    Boolean @default(false)
+  link    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AdminSettings {
+  id       String @id @default(cuid())
+  key      String @unique
+  value    String // JSON string
+  category String // "bank", "pricing", "general", "qr"
+
+  updatedAt DateTime @updatedAt
+}
